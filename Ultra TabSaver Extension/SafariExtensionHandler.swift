@@ -41,10 +41,7 @@ class SafariExtensionHandler: SFSafariExtensionHandler {
     override func contextMenuItemSelected(withCommand command: String, in page: SFSafariPage, userInfo: [String : Any]? = nil) {
         if (command.elementsEqual("Save All tabs")){
             SafariExtensionViewController.shared.saveAll(sender: SFSafariPage.self)
-        } else if (command.elementsEqual("Get All tabs")){
-            SafariExtensionViewController.shared.getAll(sender: SFSafariPage.self)
-            } else {
-            SafariExtensionViewController.shared.saveThis(sender: SFSafariPage.self)
+        } else if (command.elementsEqual("Get All tabs")) {
             SafariExtensionViewController.shared.getAll(sender: SFSafariPage.self)
         }
     }

@@ -29,9 +29,9 @@ class Persistance {
     static let shared = Persistance()
     var date = Date()
     let date_formatter = DateFormatter()
-    var current_pageWindow:SFSafariWindow!
-    var emptyDict = [String:[Page]]()
-    
+    var savedPages = [String:[Page]]()
+    var currentIndex:String?
+
     init(){
         load()
         UserDefaults.standard.synchronize()
@@ -45,8 +45,8 @@ class Persistance {
     
     func getDictionaryAsString() -> [String:[Page]]{
         var dic2:[String:[Page]] = [:]
-        for (k,_) in emptyDict{
-            dic2[k] = emptyDict[k]
+        for (k,_) in savedPages{
+            dic2[k] = savedPages[k]
         }
         return dic2
     }
@@ -90,14 +90,13 @@ class Persistance {
                     return
                 }
                 let page = Page(title: String(title.prefix(65)), url: url)
-                self.emptyDict[self.getStringAsDate(date: Date())] = [page]
+                self.savedPages[self.getStringAsDate(date: Date())] = [page]
             })
         }
         persist()
         if(actual_page != nil ){
             actual_page!.getContainingTab(completionHandler: { currentTab in
                 currentTab.getContainingWindow(completionHandler: { window in
-                    self.current_pageWindow  = window
                     window?.getAllTabs(completionHandler: { tab_list in
                         for _ in tab_list{
                             NSWorkspace.shared.open(URL(string:"https://www.google.com")!)
@@ -119,67 +118,92 @@ class Persistance {
     
     func getUrlByKey(key:String) -> [Page] {
         var retorno = [Page()]
-        for (k,_) in emptyDict{
+        for (k,_) in savedPages{
             if (k.elementsEqual(key)){
-                retorno =  emptyDict[k]!
+                retorno =  savedPages[k]!
             }
         }
         return retorno
     }
     
-    func saveAllPages(){
+    func saveAllPages(key: String? = nil){
         var flag = true
-        let date = getStringAsDate(date:Date())
-        if(actual_page != nil ){
-            actual_page!.getContainingTab(completionHandler: { currentTab in
-                currentTab.getContainingWindow(completionHandler: { window in
-                    self.current_pageWindow  = window
-                    window?.getAllTabs(completionHandler: { tab_list in
-                        var i = 0
-                        for tab in tab_list{
-                            tab.getActivePage(completionHandler: { (page) in
-                                guard let page = page else{
-                                    self.validationHandler(false, "")
-                                    return
-                                }
-                                page.getPropertiesWithCompletionHandler({ (properties) in
-                                    guard let properties = properties else {
-                                        self.validationHandler(false, "")
-                                        return
-                                    }
-                                    
-                                    guard let url = properties.url else {
-                                        self.validationHandler(false, "")
-                                        return
-                                    }
-                                    guard url.scheme == "http" || url.scheme == "https" else {
-                                        self.validationHandler(false, "")
-                                        return
-                                    }
-                                    guard let title = properties.title else {
-                                        self.validationHandler(false, "")
-                                        return
-                                    }
-                                    let page = Page(title: title, url: url)
-                                    if flag{
-                                        self.emptyDict[date] = [page]
-                                        flag = false
-                                    }else{
-                                        self.emptyDict[date]?.append(page)
-                                    }
-                                    self.persist()
-                                })
-                                NSWorkspace.shared.open(URL(string:"https://www.google.com")!)
-                                if (i < tab_list.count){
-                                    tab.close()
-                                    i += 1
-                                }
-                            })
+        var nameIndex = key!
+        if (key == nil) {
+            nameIndex = getStringAsDate(date:Date())
+        }
+
+        SFSafariApplication.getActiveWindow { (window) in
+            window?.getAllTabs(completionHandler: { tab_list in
+                for tab in tab_list {
+                    tab.getActivePage(completionHandler: { (page) in
+                        guard let page = page else{
+                            self.validationHandler(false, "")
+                            return
                         }
+                        page.getPropertiesWithCompletionHandler({ (properties) in
+                            guard let properties = properties else {
+                                self.validationHandler(false, "")
+                                return
+                            }
+                            
+                            guard let url = properties.url else {
+                                self.validationHandler(false, "")
+                                return
+                            }
+                            guard url.scheme == "http" || url.scheme == "https" else {
+                                self.validationHandler(false, "")
+                                return
+                            }
+                            guard let title = properties.title else {
+                                self.validationHandler(false, "")
+                                return
+                            }
+                            let page = Page(title: title, url: url)
+                            if flag{
+                                self.savedPages[nameIndex] = [page]
+                                flag = false
+                            }else{
+                                self.savedPages[nameIndex]?.append(page)
+                            }
+                            self.persist()
+                        })
                     })
-                })
+                }
             })
         }
+    }
+    
+    func updateAllPages() {
+        if self.currentIndex != nil {
+            saveAllPages(key: self.currentIndex)
+        }
+        else {
+            let alert: NSAlert = NSAlert()
+            alert.messageText = "Cant save"
+            alert.informativeText = "Tabs will be lost"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+    
+    func openByKey(indexKey: String) {
+        SFSafariApplication.getActiveWindow { (window) in
+            // Close all Tabs
+            window?.getAllTabs(completionHandler: { (tabs) in
+                for (tab) in tabs {
+                    tab.close()
+                }
+            })
+
+            // Open Tabs
+            for page in self.getUrlByKey(key: indexKey) {
+                let url = URL(string: page.url.absoluteString)!
+                window?.openTab(with: url, makeActiveIfPossible: true)
+            }
+        }
+
+        setActiveIndex(index: indexKey)
     }
     
     func validationHandler(_: Bool,_: String){
@@ -191,13 +215,13 @@ class Persistance {
     }
     
     func deleteAll(){
-        emptyDict = [:]
+        savedPages = [:]
         persist()
     }
     
     func getAll()-> [String:[Page]] {
         load()
-        return self.emptyDict
+        return self.savedPages
     }
     
     func persist(){
@@ -222,6 +246,8 @@ class Persistance {
         //     let myData = NSKeyedArchiver.archivedData(withRootObject: keys)
         UserDefaults.standard.set(keyList, forKey: "UTSkeysPages")
         
+        UserDefaults.standard.set(currentIndex, forKey: "UTScurrentIndex")
+        
         UserDefaults.standard.synchronize()
     }
     
@@ -237,9 +263,9 @@ class Persistance {
                     
                     let storedData = UserDefaults.standard.data(forKey: key)
                     
-                    var pages = try JSONDecoder().decode([Page].self, from: storedData!)
+                    let pages = try JSONDecoder().decode([Page].self, from: storedData!)
                     
-                    emptyDict[key] = getURLFromString(pages: pages)
+                    savedPages[key] = getURLFromString(pages: pages)
                     
                 }
                 catch {
@@ -249,42 +275,44 @@ class Persistance {
                 
             }
         }
+        
+        let index = UserDefaults.standard.string(forKey: "UTScurrentIndex")
+        currentIndex = index
     }
     
     func deleteKey(key: String){
-        emptyDict.removeValue(forKey: key)
+        savedPages.removeValue(forKey: key)
         persist()
     }
     
     func renameKey(oldKey:String, newKey:String){
-        if(emptyDict.keys.contains(newKey)){
+        if(savedPages.keys.contains(newKey)){
             dialogOK(question: "This name already exist", text: "Try another value")
         }else{
-            emptyDict[newKey] = emptyDict[oldKey]
+            savedPages[newKey] = savedPages[oldKey]
             deleteKey(key: oldKey)
             persist()
         }
     }
     
     func addPage(key:String, page:Page){
-        emptyDict[key]?.append(page)
+        savedPages[key]?.append(page)
         persist()
     }
     
-    func dialogOK(question: String, text: String) -> Bool {
+    func dialogOK(question: String, text: String) {
         let alert = NSAlert()
         alert.messageText = question
         alert.informativeText = text
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
-        return alert.runModal() == .alertFirstButtonReturn
-        
+        alert.runModal()
     }
     
     func deletePage(key:String, page:Page ){
-        let index = emptyDict[key]?.firstIndex(of: page) ?? -1
+        let index = savedPages[key]?.firstIndex(of: page) ?? -1
         if (index != -1){
-            emptyDict[key]?.remove(at: index)
+            savedPages[key]?.remove(at: index)
         }
         persist()
     }
@@ -298,11 +326,12 @@ class Persistance {
         return list
     }
     
-    func getWindow()->SFSafariWindow{
-        return self.current_pageWindow
+    func getActiveIndex() -> String? {
+        return self.currentIndex
     }
     
-    func setWindow(window:SFSafariWindow){
-        self.current_pageWindow = window
+    func setActiveIndex(index: String?) {
+        self.currentIndex = index
+        persist()
     }
 }

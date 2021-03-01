@@ -30,6 +30,7 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
     override func viewDidLoad() {
         preferredContentSize = NSSize(width: 136, height: 199)
         super.viewDidLoad()
+        Persistance.shared.updateAllPages()
     }
     
     func flag(bool: Bool){
@@ -39,10 +40,6 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
     func toolbarItemClicked(sender: SFSafariWindow){
         flag = false
         main_menu = NSMenu()
-        firstItemPoint = NSEvent.mouseLocation
-        main_menu.addItem(getMenuItem(title: "Empty", selector:#selector(noHaceNada) ))
-        main_menu.removeAllItems()
-        main_menu.addItem(getMenuItem(title: "Save this tab", selector:#selector(savePageLeftClick) ))
         main_menu.addItem(getMenuItem(title: "Save all tabs", selector: #selector(saveAllLeftClick)))
         let getAll = getMenuItem(title: "Saved tabs", selector: #selector(getAllLeftClick))
         self.parse(list: Persistance.shared.getAll())
@@ -50,23 +47,7 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
         main_menu.addItem(getAll)
         main_menu.popUp(positioning: main_menu.item(at: 0), at: NSEvent.mouseLocation, in: nil)
     }
-    
-    
-    func toolbarItemClicked2(){
-        main_menu = NSMenu()
-        firstItemPoint = NSEvent.mouseLocation
-        main_menu.addItem(getMenuItem(title: "Empty", selector:#selector(noHaceNada) ))
-        main_menu.removeAllItems()
-        main_menu.addItem(getMenuItem(title: "Save this tab", selector:#selector(savePageLeftClick) ))
-        main_menu.addItem(getMenuItem(title: "Save all tabs", selector: #selector(saveAllLeftClick)))
-        let getAll = getMenuItem(title: "Saved tabs", selector: #selector(getAllLeftClick))
-        self.parse(list: Persistance.shared.getAll())
-        getAll.submenu = custom_menu
-        main_menu.addItem(getAll)
-        main_menu.popUp(positioning: main_menu.item(at: 0), at: NSEvent.mouseLocation, in: nil)
-        
-    }
-    
+
     @objc func savePageLeftClick(){
         Persistance.shared.saveActualPage()
         if (main_menu.items.count > 0){
@@ -85,44 +66,9 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
     @objc func getAllLeftClick(){
         self.parse(list: Persistance.shared.getAll())
     }
-    
-    @IBAction func saveThis(sender: AnyObject){
-        Persistance.shared.saveActualPage()
-        custom_menu = NSMenu()
-        custom_menu.addItem(getMenuItem(title: "Page saved",selector: #selector(noHaceNada)))
-        custom_menu.popUp(positioning: custom_menu.item(at: 0), at: NSEvent.mouseLocation, in: nil)
-    }
-    
-    @objc func noHaceNada(){
-        
-    }
-    
+
     @IBAction func saveAll(sender: AnyObject){
         Persistance.shared.saveAllPages()
-        custom_menu = NSMenu()
-        custom_menu.addItem(getMenuItem(title: "Page saved",selector: #selector(noHaceNada)))
-        custom_menu.popUp(positioning: custom_menu.item(at: 0), at: NSEvent.mouseLocation, in: nil)
-    }
-    
-    func dialogOKCancel(question: String, text: String) -> Bool {
-        let alert = NSAlert()
-        alert.messageText = question
-        alert.informativeText = text
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-        alert.addButton(withTitle: "Cancel")
-        return alert.runModal() == .alertFirstButtonReturn
-        
-    }
-    
-    func dialogEverythingOK(question: String) -> Bool {
-        let alert = NSAlert()
-        alert.messageText = question
-        alert.informativeText = question
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK")
-        return alert.runModal() == .alertFirstButtonReturn
-        
     }
     
     
@@ -130,9 +76,7 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
         print("Get All")
         self.parse(list: Persistance.shared.getAll())
         custom_menu.popUp(positioning: custom_menu.item(at: 0), at: NSEvent.mouseLocation, in: nil)
-        
-    }
-    
+    }    
     
     @objc func selectPage(sender: NSMenuItem){
         
@@ -268,11 +212,7 @@ class SafariExtensionViewController: SFSafariExtensionViewController {
             options.popUp(positioning: options.item(at: 0), at: NSEvent.mouseLocation, in: nil)
             
         } else {
-            // Left button click
-            for page in Persistance.shared.getUrlByKey(key: sender.title) {
-                let url = URL(string: page.url.absoluteString)!
-                NSWorkspace.shared.open(url)
-            }
+            Persistance.shared.openByKey(indexKey: sender.title)
         }
     }
     

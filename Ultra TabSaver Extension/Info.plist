@@ -28,21 +28,8 @@
 		<string>com.apple.Safari.extension</string>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).SafariExtensionHandler</string>
-		<key>SFSafariContentScript</key>
-		<array>
-			<dict>
-				<key>Script</key>
-				<string>script.js</string>
-			</dict>
-		</array>
 		<key>SFSafariContextMenu</key>
 		<array>
-			<dict>
-				<key>Command</key>
-				<string>Save This tab</string>
-				<key>Text</key>
-				<string>Save This tab</string>
-			</dict>
 			<dict>
 				<key>Command</key>
 				<string>Save All tabs</string>
